@@ -762,7 +762,7 @@ function renderS1Matches(grp) {
   filtered.forEach(f=>{
     const sc=state.s1[f.id]||{};
     const played=!!sc.winner;
-    const need_tb=sc.s1===6&&sc.s2===6&&!played;
+    const need_tb=(sc.s1===6&&sc.s2===6)||(!played&&sc.s1===6&&sc.s2===6);
     const isTB=played&&((sc.s1===7&&sc.s2===6)||(sc.s2===7&&sc.s1===6));
     const w1=sc.winner===f.p1, w2=sc.winner===f.p2;
     const div=document.createElement('div');
@@ -787,8 +787,16 @@ function s1Score(grp, id, field, val) {
   const sc=state.s1[id]; const v=parseInt(val);
   sc[field]=isNaN(v)?null:v; sc.tb1=null; sc.tb2=null; sc.winner=null;
   if(sc.s1!==null&&sc.s2!==null){
-    const valid=(sc.s1===6&&sc.s2<=5)||(sc.s2===6&&sc.s1<=5)||(sc.s1===7&&sc.s2===5)||(sc.s2===7&&sc.s1===5);
-    if(valid){const f=getFix(grp,id);sc.winner=sc.s1>sc.s2?f.p1:f.p2;}
+    // Valid wins: 6-x(0-4), 7-5, 7-6 (tiebreak)
+    const s1=sc.s1, s2=sc.s2;
+    const p1wins = (s1===6&&s2<=4)||(s1===7&&s2<=6);
+    const p2wins = (s2===6&&s1<=4)||(s2===7&&s1<=6);
+    const isTB = (s1===7&&s2===6)||(s2===7&&s1===6);
+    if(p1wins||p2wins){
+      const f=getFix(grp,id);
+      sc.winner=s1>s2?f.p1:f.p2;
+      sc.tiebreak=isTB;
+    }
   }
   saveLocal(); renderS1(); saveS1ToSheet(grp, id);
 }
@@ -796,10 +804,15 @@ function s1TB(grp, id, field, val) {
   if (!state.s1[id]) state.s1[id]={s1:6,s2:6,tb1:null,tb2:null,winner:null};
   const sc=state.s1[id]; const v=parseInt(val);
   sc[field]=isNaN(v)?null:v;
-  if(sc.tb1!==null&&sc.tb2!==null&&sc.tb1!==sc.tb2&&(sc.tb1>=10||sc.tb2>=10)){
-    const f=getFix(grp,id);
-    sc.s1=sc.tb1>sc.tb2?7:6; sc.s2=sc.tb2>sc.tb1?7:6;
-    sc.winner=sc.tb1>sc.tb2?f.p1:f.p2;
+  if(sc.tb1!==null&&sc.tb2!==null&&sc.tb1!==sc.tb2){
+    const t1=sc.tb1, t2=sc.tb2;
+    const valid=(t1>=10||t2>=10)&&Math.abs(t1-t2)>=2;
+    if(valid){
+      const f=getFix(grp,id);
+      sc.s1=t1>t2?7:6; sc.s2=t2>t1?7:6;
+      sc.winner=t1>t2?f.p1:f.p2;
+      sc.tiebreak=true;
+    }
   }
   saveLocal(); renderS1(); saveS1ToSheet(grp, id);
 }
