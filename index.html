@@ -343,6 +343,13 @@
   .view-only-banner.show { display: block; }
   .spinner { width: 32px; height: 32px; border: 3px solid var(--b2); border-top-color: var(--glt); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 40px auto; display: block; }
   @keyframes spin { to { transform: rotate(360deg); } }
+  .exhibition-badge {
+    font-size: 0.58rem; background: var(--purple); color: white;
+    padding: 1px 5px; border-radius: 2px;
+    font-family: 'JetBrains Mono', monospace; font-weight: 600;
+  }
+  .mc.exhibition { border-left: 3px solid var(--purple) !important; opacity: 0.82; }
+  @keyframes spin { to { transform: rotate(360deg); } }
 
   /* CAN TRACKER */
   .cans-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; }
@@ -465,7 +472,7 @@
   <div class="stage-hero sh-s2">
     <div class="hero-eyebrow">New West Tennis Tournament · Season 2 · 2026</div>
     <div class="hero-title">Stage 2 · Super 8</div>
-    <div class="hero-meta">8 Qualifiers · 28 Matches · Best of 2 Sets · 10pt MTB if 1-1</div>
+    <div class="hero-meta">8 Qualifiers · Group A vs Group B · 16 Matches · Best of 2 Sets · 10pt MTB if 1-1</div>
   </div>
   <div class="prog-row" id="prog-2"></div>
   <div class="inner-tabs">
@@ -602,12 +609,12 @@ function showPinOverlay() {
   document.getElementById('pin-overlay').classList.remove('hidden');
 }
 const FIX_A = [
-  {id:'A1',p1:'Preet',p2:'Naveen',week:1},{id:'A2',p1:'Tejas',p2:'Kiran',week:1},
+  {id:'A1',p1:'Preet',p2:'Naveen',week:1},{id:'A2',p1:'Tejas',p2:'Oliver',week:1,exhibition:true,sub:'Oliver',for:'Kiran'},
   {id:'A3',p1:'Anup',p2:'Prasanth',week:1},{id:'A4',p1:'Preet',p2:'Tejas',week:1},
-  {id:'A5',p1:'Naveen',p2:'Kiran',week:2},{id:'A6',p1:'Preet',p2:'Anup',week:2},
-  {id:'A7',p1:'Tejas',p2:'Anup',week:2},{id:'A8',p1:'Kiran',p2:'Prasanth',week:2},
+  {id:'A5',p1:'Naveen',p2:'Oliver',week:2,exhibition:true,sub:'Oliver',for:'Kiran'},{id:'A6',p1:'Preet',p2:'Anup',week:2},
+  {id:'A7',p1:'Tejas',p2:'Anup',week:2},{id:'A8',p1:'Oliver',p2:'Prasanth',week:2,exhibition:true,sub:'Oliver',for:'Kiran'},
   {id:'A9',p1:'Preet',p2:'Kiran',week:3},{id:'A10',p1:'Naveen',p2:'Tejas',week:3},
-  {id:'A11',p1:'Anup',p2:'Kiran',week:3},{id:'A12',p1:'Preet',p2:'Prasanth',week:3},
+  {id:'A11',p1:'Anup',p2:'Oliver',week:3,exhibition:true,sub:'Oliver',for:'Kiran'},{id:'A12',p1:'Preet',p2:'Prasanth',week:3},
   {id:'A13',p1:'Naveen',p2:'Anup',week:4},{id:'A14',p1:'Tejas',p2:'Prasanth',week:4},
   {id:'A15',p1:'Naveen',p2:'Prasanth',week:4}
 ];
@@ -720,10 +727,15 @@ function renderS1() {
 
 function renderS1Standings(grp) {
   const fixes = grp==='A' ? FIX_A : FIX_B;
-  const players = [...new Set(fixes.flatMap(f=>[f.p1,f.p2]))];
+  const players = [...new Set(fixes.flatMap(f=>[f.p1,f.p2]))].filter(p => {
+    // Exclude Oliver from Group A standings (he's a substitute for Kiran)
+    if (grp === 'A' && p === 'Oliver') return false;
+    return true;
+  });
   const st = {}; players.forEach(p=>st[p]={name:p,pts:0,wins:0,losses:0,played:0,gw:0,gl:0});
   fixes.forEach(f=>{
     const sc=state.s1[f.id]; if (!sc?.winner) return;
+    if (f.exhibition) return; // skip exhibition matches from standings
     st[f.p1].played++; st[f.p2].played++;
     st[f.p1].gw+=sc.s1||0; st[f.p1].gl+=sc.s2||0;
     st[f.p2].gw+=sc.s2||0; st[f.p2].gl+=sc.s1||0;
@@ -766,7 +778,7 @@ function renderS1Matches(grp) {
     const isTB=played&&((sc.s1===7&&sc.s2===6)||(sc.s2===7&&sc.s1===6));
     const w1=sc.winner===f.p1, w2=sc.winner===f.p2;
     const div=document.createElement('div');
-    div.className=`mc${played?' played':''}`;
+    div.className=`mc${played?' played':''}${f.exhibition?' exhibition':''}`;
     div.innerHTML=`
       <div class="mp p1 ${w1?'win':''}">${e(f.p1)}</div>
       <div><input type=number min=0 max=7 value="${sc.s1??''}" placeholder="–" onchange="s1Score('${grp}','${f.id}','s1',this.value)"></div>
@@ -774,6 +786,7 @@ function renderS1Matches(grp) {
       <div><input type=number min=0 max=7 value="${sc.s2??''}" placeholder="–" onchange="s1Score('${grp}','${f.id}','s2',this.value)"></div>
       <div class="mp p2 ${w2?'win':''}">${e(f.p2)}</div>
       <div class="mc-meta">
+        ${f.exhibition?`<span class="exhibition-badge">EXH</span><span class="mc-id" style="color:var(--purple)">Sub for ${f.for}</span>`:''}
         ${isTB?'<span class="tb-badge">TB</span>':''}
         ${need_tb?`<div class="tb-row">TB:<input type=number min=0 max=20 value="${sc.tb1??''}" placeholder="–" style="width:30px" onchange="s1TB('${grp}','${f.id}','tb1',this.value)">–<input type=number min=0 max=20 value="${sc.tb2??''}" placeholder="–" style="width:30px" onchange="s1TB('${grp}','${f.id}','tb2',this.value)"></div>`:''}
         <span class="mc-id">Wk${f.week}·${f.id}</span>
@@ -832,56 +845,64 @@ async function saveS1ToSheet(grp, id) {
 function getS2Players() {
   // Check if Stage 1 is fully complete
   const allDone = [...FIX_A,...FIX_B].every(f=>state.s1[f.id]?.winner);
+  const getTop4=(fixes)=>{
+    const players=[...new Set(fixes.flatMap(f=>[f.p1,f.p2]))];
+    const st={};players.forEach(p=>st[p]={name:p,pts:0,wins:0,gw:0,gl:0});
+    fixes.forEach(f=>{
+      const sc=state.s1[f.id];if(!sc?.winner)return;
+      st[f.p1].gw+=sc.s1||0;st[f.p1].gl+=sc.s2||0;
+      st[f.p2].gw+=sc.s2||0;st[f.p2].gl+=sc.s1||0;
+      if(sc.winner===f.p1){st[f.p1].pts+=2;st[f.p1].wins++;}
+      else{st[f.p2].pts+=2;st[f.p2].wins++;}
+    });
+    return Object.values(st).sort((a,b)=>b.pts!==a.pts?b.pts-a.pts:b.wins!==a.wins?b.wins-a.wins:(b.gw-b.gl)-(a.gw-a.gl)).slice(0,4).map(p=>p.name);
+  };
   if (allDone) {
-    // Auto-pull top 4 from each group
-    const getTop4=(fixes)=>{
-      const players=[...new Set(fixes.flatMap(f=>[f.p1,f.p2]))];
-      const st={};players.forEach(p=>st[p]={name:p,pts:0,wins:0,gw:0,gl:0});
-      fixes.forEach(f=>{
-        const sc=state.s1[f.id];if(!sc?.winner)return;
-        st[f.p1].gw+=sc.s1||0;st[f.p1].gl+=sc.s2||0;
-        st[f.p2].gw+=sc.s2||0;st[f.p2].gl+=sc.s1||0;
-        if(sc.winner===f.p1){st[f.p1].pts+=2;st[f.p1].wins++;}
-        else{st[f.p2].pts+=2;st[f.p2].wins++;}
-      });
-      return Object.values(st).sort((a,b)=>b.pts!==a.pts?b.pts-a.pts:b.wins!==a.wins?b.wins-a.wins:(b.gw-b.gl)-(a.gw-a.gl)).slice(0,4).map(p=>p.name);
-    };
-    return [...getTop4(FIX_A),...getTop4(FIX_B)];
+    return { a: getTop4(FIX_A), b: getTop4(FIX_B) };
   }
-  // Stage 1 not done yet — use placeholders
-  return ['Player 1','Player 2','Player 3','Player 4','Player 5','Player 6','Player 7','Player 8'];
+  // Placeholders
+  return {
+    a: ['A1','A2','A3','A4'],
+    b: ['B1','B2','B3','B4']
+  };
 }
 
 function getS2Fixtures() {
-  const players=getS2Players();
-  if(players.length<8) return [];
-  const fixes=[];
-  for(let i=0;i<players.length;i++)
-    for(let j=i+1;j<players.length;j++)
-      fixes.push({id:`S2-${i+1}${j+1}`,p1:players[i],p2:players[j]});
+  const {a, b} = getS2Players();
+  const fixes = [];
+  a.forEach((pa, i) => {
+    b.forEach((pb, j) => {
+      fixes.push({id:`S2-${i+1}${j+1}`, p1:pa, p2:pb, grpA:i, grpB:j});
+    });
+  });
   return fixes;
 }
 
 function renderS2() {
   const fixes=getS2Fixtures();
   const played=fixes.filter(f=>state.s2[f.id]?.winner).length;
-  document.getElementById('prog-2').innerHTML=progHTML(played,28,'pf-s2');
+  document.getElementById('prog-2').innerHTML=progHTML(played,16,'pf-s2');
   renderS2Standings(fixes);
   renderS2Matches(fixes);
 }
 
 function renderS2Standings(fixes) {
-  if(!fixes.length){document.getElementById('std-s2').innerHTML='<p style="color:var(--muted);font-size:0.82rem;padding:20px 0">Complete Stage 1 to unlock Super 8 standings.</p>';return;}
   const allS1Done=[...FIX_A,...FIX_B].every(f=>state.s1[f.id]?.winner);
-  if(!allS1Done){
-    document.getElementById('std-s2').innerHTML='<p style="color:var(--muted);font-size:0.82rem;padding:20px 0">⏳ Player 1–8 are placeholders. Standings will update automatically once all Stage 1 matches are complete.</p>';
-    return;
+  if(!fixes.length){
+    document.getElementById('std-s2').innerHTML='<p style="color:var(--muted);font-size:0.82rem;padding:20px 0">Complete Stage 1 to unlock Super 8.</p>';return;
   }
-  const players=[...new Set(fixes.flatMap(f=>[f.p1,f.p2]))];
-  const st={};players.forEach(p=>st[p]={name:p,pts:0,wins:0,w3:0,w2:0,l1:0,l0:0,played:0,sw:0,sl:0,gw:0,gl:0});
+  if(!allS1Done){
+    document.getElementById('std-s2').innerHTML='<p style="color:var(--muted);font-size:0.82rem;padding:20px 0">⏳ Placeholders shown. Real names appear once Stage 1 is complete.</p>';return;
+  }
+  const {a: playersA, b: playersB} = getS2Players();
+  // Build stats for all 8
+  const allPlayers=[...playersA,...playersB];
+  const st={};
+  allPlayers.forEach(p=>st[p]={name:p,grp:playersA.includes(p)?'A':'B',pts:0,wins:0,w3:0,w2:0,l1:0,l0:0,played:0,sw:0,sl:0,gw:0,gl:0});
   fixes.forEach(f=>{
     const sc=state.s2[f.id];if(!sc?.winner)return;
-    const a=st[f.p1],b=st[f.p2];a.played++;b.played++;
+    const a=st[f.p1],b=st[f.p2];if(!a||!b)return;
+    a.played++;b.played++;
     const s1w=sc.s1p1>sc.s1p2,s2w=sc.s2p1>sc.s2p2;
     const asets=(s1w?1:0)+(s2w?1:0),bsets=2-asets;
     a.gw+=sc.s1p1+sc.s2p1;a.gl+=sc.s1p2+sc.s2p2;
@@ -894,32 +915,43 @@ function renderS2Standings(fixes) {
       else{b.pts+=2;b.wins++;b.w2++;a.pts+=1;a.l1++;}
     }
   });
-  const rows=Object.values(st).sort((a,b)=>{
+  const sortFn=(arr)=>arr.sort((a,b)=>{
     if(b.pts!==a.pts)return b.pts-a.pts;
-    const h=fixes.find(f=>(f.p1===a.name&&f.p2===b.name)||(f.p1===b.name&&f.p2===a.name));
-    if(h?.winner===a.name)return -1;if(h?.winner===b.name)return 1;
     const spA=a.sw+a.sl>0?a.sw/(a.sw+a.sl):0,spB=b.sw+b.sl>0?b.sw/(b.sw+b.sl):0;
     if(Math.abs(spB-spA)>0.001)return spB-spA;
     const gpA=a.gw+a.gl>0?a.gw/(a.gw+a.gl):0,gpB=b.gw+b.gl>0?b.gw/(b.gw+b.gl):0;
     return gpB-gpA;
   });
-  const maxPts=rows[0]?.pts||0;
-  document.getElementById('std-s2').innerHTML=`
-    <div class="tbl-title">Super 8 Standings</div>
+  const rowsA=sortFn(playersA.map(p=>st[p]));
+  const rowsB=sortFn(playersB.map(p=>st[p]));
+  const maxPtsA=rowsA[0]?.pts||0;
+  const maxPtsB=rowsB[0]?.pts||0;
+
+  const tblHTML=(rows,maxPts,grpLabel)=>`
+    <div class="tbl-title">Group ${grpLabel} <span style="font-size:0.7rem;font-family:'JetBrains Mono',monospace;color:var(--muted)">Super 8</span></div>
     <div style="font-size:0.65rem;color:var(--muted);margin-bottom:8px;font-family:'JetBrains Mono',monospace">
-      <span style="color:var(--win)">■</span> W 2-0 = 3pts &nbsp;
-      <span style="color:var(--blue)">■</span> W 2-1 = 2pts &nbsp;
-      <span style="color:var(--tie)">■</span> L 1-2 = 1pt &nbsp;
-      <span style="color:var(--loss)">■</span> L 0-2 = 0pts
+      <span style="color:var(--win)">■</span> 2-0=3pts &nbsp;
+      <span style="color:var(--blue)">■</span> 2-1=2pts &nbsp;
+      <span style="color:var(--tie)">■</span> 1-2=1pt &nbsp;
+      <span style="color:var(--loss)">■</span> 0-2=0pts
     </div>
     <table><thead><tr><th>#</th><th class="tl">Player</th><th>P</th><th class="w3c">2-0</th><th class="w2c">2-1</th><th class="l1c">1-2</th><th class="l0c">0-2</th><th>Pts</th></tr></thead>
-    <tbody>${rows.map((r,i)=>`<tr class="${i<4?'qual-row':''}">
-      <td><span class="rn ${i===0?'r1':i===1?'r2':i===2?'r3':''}">${i+1}</span></td>
+    <tbody>${rows.map((r,i)=>`<tr class="${i<2?'qual-row':''}">
+      <td><span class="rn ${i===0?'r1':i===1?'r2':''}">${i+1}</span></td>
       <td class="tl"><span class="pc">${e(r.name)}</span></td>
       <td>${r.played}</td>
       <td class="w3c">${r.w3||'–'}</td><td class="w2c">${r.w2||'–'}</td><td class="l1c">${r.l1||'–'}</td><td class="l0c">${r.l0||'–'}</td>
       <td><span class="pts ${r.pts===maxPts&&r.pts>0?'lead':''}">${r.pts}</span></td>
     </tr>`).join('')}</tbody></table>`;
+
+  document.getElementById('std-s2').innerHTML=`
+    <div class="groups-grid">
+      <div>${tblHTML(rowsA, maxPtsA, 'A')}</div>
+      <div>${tblHTML(rowsB, maxPtsB, 'B')}</div>
+    </div>
+    <div style="font-size:0.72rem;color:var(--muted);margin-top:12px;padding:8px 12px;background:var(--s);border-radius:6px;border:1px solid var(--b)">
+      🎾 Group A vs Group B cross-play · Top 2 from each group → IPL Knockouts
+    </div>`;
 }
 
 function renderS2Matches(fixes) {
@@ -928,7 +960,7 @@ function renderS2Matches(fixes) {
   if(!fixes.length){el.innerHTML='<p style="color:var(--muted);font-size:0.82rem;padding:20px 0">Stage 1 must be completed first.</p>';return;}
   const allS1Done=[...FIX_A,...FIX_B].every(f=>state.s1[f.id]?.winner);
   if(!allS1Done){
-    el.innerHTML='<p style="color:var(--muted);font-size:0.82rem;padding:12px 0">⏳ Showing Player 1–8 as placeholders. Real names will appear once Stage 1 is complete.</p>';
+    el.innerHTML='<p style="color:var(--muted);font-size:0.82rem;padding:12px 0">⏳ Showing placeholders. Real names appear once Stage 1 is complete.</p>';
   }
   fixes.forEach(f=>{
     const sc=state.s2[f.id]||{};
@@ -1013,11 +1045,13 @@ async function saveS2ToSheet(id, p1, p2) {
 function getS2Top4() {
   const fixes=getS2Fixtures();
   if(!fixes.length) return [];
-  const players=[...new Set(fixes.flatMap(f=>[f.p1,f.p2]))];
-  const st={};players.forEach(p=>st[p]={name:p,pts:0,wins:0,sw:0,sl:0,gw:0,gl:0});
+  const {a: playersA, b: playersB} = getS2Players();
+  const allPlayers=[...playersA,...playersB];
+  const st={};
+  allPlayers.forEach(p=>st[p]={name:p,grp:playersA.includes(p)?'A':'B',pts:0,wins:0,sw:0,sl:0,gw:0,gl:0});
   fixes.forEach(f=>{
     const sc=state.s2[f.id];if(!sc?.winner)return;
-    const a=st[f.p1],b=st[f.p2];
+    const a=st[f.p1],b=st[f.p2];if(!a||!b)return;
     const s1w=sc.s1p1>sc.s1p2,s2w=sc.s2p1>sc.s2p2;
     const asets=(s1w?1:0)+(s2w?1:0),bsets=2-asets;
     a.sw+=asets;a.sl+=bsets;b.sw+=bsets;b.sl+=asets;
@@ -1027,7 +1061,11 @@ function getS2Top4() {
     else if(bsets===2){b.pts+=3;b.wins++;}
     else{if(sc.winner===f.p1){a.pts+=2;a.wins++;}else{b.pts+=2;b.wins++;}}
   });
-  return Object.values(st).sort((a,b)=>b.pts-a.pts).slice(0,4).map(p=>p.name);
+  const sortFn=(arr)=>arr.sort((a,b)=>b.pts-a.pts);
+  const top2A=sortFn(playersA.map(p=>st[p])).slice(0,2).map(p=>p.name);
+  const top2B=sortFn(playersB.map(p=>st[p])).slice(0,2).map(p=>p.name);
+  // Q1: A1 vs B1, EL: A2 vs B2 (cross seeding)
+  return [top2A[0], top2B[0], top2A[1], top2B[1]];
 }
 
 function propagateKO() {
